@@ -1,0 +1,8 @@
+streamlit
+numpy
+pandas
+Pillow
+scipy
+scikit-image
+torch
+

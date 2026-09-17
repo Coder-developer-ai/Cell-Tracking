@@ -148,22 +148,38 @@ def _make_output_zip(output_dir: Path) -> bytes:
 
 
 @st.cache_resource(show_spinner="Loading Cell_Dynamics engine...")
+
 def load_engine():
-    nb = json.loads(NOTEBOOK_PATH.read_text(encoding="utf-8"))
-    code_cells = [
-        "".join(cell["source"]) if isinstance(cell["source"], list) else cell["source"]
-        for cell in nb["cells"]
-        if cell.get("cell_type") == "code"
-    ]
-    source = "\n\n".join(code_cells)
+    try:
+        import nbformat
+        from pathlib import Path
 
-    module = types.ModuleType("cell_dynamics_engine")
-    module.__file__ = str(NOTEBOOK_PATH)
+        notebook_path = Path("Cell_Dynamics.ipynb")
 
-    sys.modules["cell_dynamics_engine"] = module
-    exec(compile(source, str(NOTEBOOK_PATH), "exec"), module.__dict__)
-    return module
+        with notebook_path.open("r", encoding="utf-8") as f:
+            notebook = nbformat.read(f, as_version=4)
 
+        source = "\n\n".join(
+            cell["source"]
+            for cell in notebook.cells
+            if cell.cell_type == "code"
+        )
+
+        module = {}
+        exec(compile(source, str(notebook_path), "exec"), module)
+
+        return module
+
+    except ModuleNotFoundError as e:
+        st.error(
+            f"Missing Python package: {e.name}. "
+            "Add it to requirements.txt and redeploy."
+        )
+        st.stop()
+
+    except Exception as e:
+        st.error(f"Engine loading failed: {e}")
+        st.stop()
 
 engine = load_engine()
 
